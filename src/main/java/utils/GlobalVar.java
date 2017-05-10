@@ -6,6 +6,6 @@ public class GlobalVar {
 	// a semantic expression has to be to our topic to be considered as
 	// referring to that topic and not some other unrelated subject in the
 	// sentence
-	public static final int TOPIC_RANGE = 4;
+	public static  int TOPIC_RANGE = 4;
 
 }

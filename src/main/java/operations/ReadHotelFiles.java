@@ -159,8 +159,10 @@ public class ReadHotelFiles implements ReadData {
 			try {
 				hn = hi.getUrl().split("-Reviews")[1].split(".html")[0];
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				try {
+					hn = hi.getImgUrl().split("-Reviews")[1].split(".html")[0];
+				} catch (Exception e2) {
+				}
 			}
 			hi.setName(hn);
 		}

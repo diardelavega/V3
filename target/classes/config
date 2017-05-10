@@ -1,0 +1,9 @@
+
+#topic search range value
+topic_range=41
+
+# file showing the open-nlp sentence tokenizer.
+sentence_token="C:/Users/Administrator/Documents/opennlp/models/en-sent.bin"
+
+#path to the file for the open-nlp POS tager model
+pos_tager="C:/Users/Administrator/Documents/opennlp/models/en-pos-maxent.bin"

@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,9 +35,14 @@ public class Commons {
 	private static SentenceDetectorME sdetector;
 	private static POSTaggerME tagger;
 
+	private static String sentenceTokenizerPath;
+	private static String posTaggerPath;
+
 	public static SentenceDetectorME getSentenceDetectorME() throws IOException {
 		if (sdetector == null) {
-			InputStream is = new FileInputStream("C:/Users/Administrator/Documents/opennlp/models/en-sent.bin");
+			if (!(new File(sentenceTokenizerPath).exists()))
+				throw new FileNotFoundException("sentence tokenizer model file not found");
+			InputStream is = new FileInputStream(sentenceTokenizerPath);
 			SentenceModel model = new SentenceModel(is);
 			sdetector = new SentenceDetectorME(model);
 		}
@@ -45,7 +51,9 @@ public class Commons {
 
 	public static POSTaggerME getPOSTaggerME() throws IOException {
 		if (tagger == null) {
-			File file = new File("C:/Users/Administrator/Documents/opennlp/models/en-pos-maxent.bin");
+			File file = new File(posTaggerPath);
+			if (!file.exists())
+				throw new FileNotFoundException("POS tagger model file not found");
 			POSModel pmodel = new POSModelLoader().load(file);
 			tagger = new POSTaggerME(pmodel);
 		}
@@ -57,10 +65,12 @@ public class Commons {
 	 * stemmed comment words. Phrases with multiple will not be stemmed as they
 	 * are considered phrases/expressions that go togather as they are.
 	 */
-	public static void init(String filename) throws FileNotFoundException {
-		// String filename = "C:/hotel/Semantic/semantics.json";
+	public static void init(String filename, String sentenceToken, String posTag) throws FileNotFoundException {
+		// initialize the model file path for the opennlp libraries
+		sentenceTokenizerPath = sentenceToken;
+		posTaggerPath = posTag;
+
 		filename += "/Semantic/semantics.json";
-		System.out.println("@Commons filename " + filename);
 		File f = new File(filename);
 		if (!f.exists()) {
 			throw new FileNotFoundException();
