@@ -1,9 +1,13 @@
 package operations;
 
-import java.text.BreakIterator;
-import java.util.Locale;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
+import opennlp.tools.stemmer.PorterStemmer;
+import opennlp.tools.tokenize.WhitespaceTokenizer;
 import utils.Commons;
+import utils.GlobalVar;
 
 /**
  * @author Administrator
@@ -14,165 +18,290 @@ import utils.Commons;
  */
 public class TopicSearchEvaluation {
 
-	private float commentPositiveSentimentPoints = 0;
-	private float commentNegativeSentimentPoints = 0;
-	private boolean foundFlag = false; // if the topic is mentioned in this comment
-	private String selectedSentence ;
+	private float commentPositiveSentiment = 0;
+	private float commentNegativeSentiment = 0;
+	private boolean foundFlag = false; // if the topic is mentioned in this
+										// comment
+	private String selectedSentence;
+	private String[] tokens;
 
-	/*
-	 * separate every sentence in the comment and examin them individually to
-	 * spot the search topic
-	 */
-	public void perSentenceSearch(String comment, String topic) {
+	public void perSentenceSearch(String comment, String topic) throws IOException {
+		foundFlag = false;
+		for (String sentence : Commons.getSentenceDetectorME().sentDetect(comment)) {
+			if (senitmentFinder(sentence, topic))
+				foundFlag = true;// if it was found once then is always true
+			if (selectedSentence == null || selectedSentence == "" || sentence.length() < selectedSentence.length())
+				selectedSentence = sentence;
 
-		Locale locale = Locale.UK;
-		BreakIterator breakIterator = BreakIterator.getSentenceInstance(locale);
-		breakIterator.setText(comment);
-		int start = breakIterator.first();
-		int end = breakIterator.next();
-
-		String sentence;
-
-		while (end != BreakIterator.DONE) {
-			sentence = comment.substring(start, end);
-			foundFlag = topicSearch(sentence, topic);
-			if (foundFlag) {
-				if(selectedSentence==null ||selectedSentence=="" || sentence.length() < selectedSentence.length())
-					selectedSentence = sentence;
-
-//				System.out.printf("%s   %b \n", sentence, foundFlag);
-				// loop the sentence and search for semantic words associated with
-				semanticSearch(sentence);
-
-			}
-			start = end;
-			end = breakIterator.next();
 		}
 	}
 
-	/*
-	 * for every word of the sentence, search for the specified topic. If found
-	 * determine the semantic meaning by utilizing the semantic file key words
-	 * and their values.
-	 */
-	private boolean topicSearch(String sent, String searchTerm) {
-		boolean foundTopicFlag = false;
-		Locale locale = Locale.UK;
-		BreakIterator breakIterator = BreakIterator.getWordInstance(locale);
-		breakIterator.setText(sent);
+	/* Evaluate the sentiment for the search-topic */
+	public boolean senitmentFinder(String sent, String topic) throws IOException {
+		WhitespaceTokenizer st = WhitespaceTokenizer.INSTANCE;
+		PorterStemmer ps = new PorterStemmer();
 
-		int start = breakIterator.first();
-		int end = breakIterator.next();
+		boolean foundTopic = false;
 		String word;
-		while (end != BreakIterator.DONE) {
-			word = sent.substring(start, end);
-			if (word.equalsIgnoreCase(searchTerm)) {
-				foundTopicFlag = true;
-				break;
+		tokens = st.tokenize(sent);
+		List<Integer> topicIdxes = new ArrayList<>();
+		List<Integer> nounIndex = null;
+		topic = ps.stem(topic);// stem the topic
+
+		for (int i = 0; i < tokens.length; i++) {
+			word = ps.stem(tokens[i]);
+			if (topic.equalsIgnoreCase(word)) {
+				topicIdxes.add(i);
+				foundTopic = true;
+				if (nounIndex == null)
+					nounIndex = sentenceNounExtraction(sent);
+				fuzzySemantics(nounIndex, i);
+				i = i + GlobalVar.TOPIC_RANGE; // it was considered in the high
+												// range
 			}
-			start = end;
-			end = breakIterator.next();
-		}
-		return foundTopicFlag;
+
+		} // for
+		return foundTopic;
 	}
 
 	/*
-	 * This function determines if the sentiment in the sentence, in which the
-	 * search-topic is mentioned. For every word in the sentence check in the
-	 * Commons semantic structures to see if it's a semantically valuable word
-	 * and consider it for the numerical evaluation of the topic sentiment.
+	 * calculate the sentiment based on what is known untill this point in the
+	 * sentence
 	 */
-	private void semanticSearch(String sent) {
+	private float positiveSentimentEvaluation(float multiplier, String word, int sentimentIdx, int i) {
 		/**
-		 * From a syntactical point of view of the English language (in which
-		 * language the comments are), the intensifiers normally would go in
-		 * front of the adjective or phrase that it is trying to emphasize. The
-		 * way this function works is by getting the intensifiers of the
-		 * sentence first and multiplying that to the first semantically
-		 * positive or negative phrase. After that intent to emphasize has been
-		 * applied to a phrase then the multiplier (the numerical value of the
-		 * intensifier) becomes 0 and it is ready to find another positive or
-		 * negative instance to apply emphases to.
+		 * No matter what the condition the multiplier (value of the
+		 * intensifier) it will become 0 after a semantic expression has been
+		 * encountered in the sentence. **************************************
+		 * If the intensifier was more than 2 words away from the positive or
+		 * negative semantic word/expression then suppose that it was referring
+		 * to another adjective that is not set on our semantic database
+		 */
+		float sentiment = 0;
+		if (multiplier == 0) {
+			sentiment = Commons.positive.get(word);
+			sentimentIdx = i;
+		} else {
+			if (i - sentimentIdx > 2) {
+				sentiment = Commons.positive.get(word);
+			} else {
+				sentiment = Commons.positive.get(word) * multiplier;
+			}
+		}
+		return sentiment;
+	}
+
+	/*
+	 * calculate the sentiment based on what is known until this point in the
+	 * sentence
+	 */
+	private float negativeSentimentEvaluation(float multiplier, String word, int sentimentIdx, int i) {
+		/**
+		 * No matter what the condition the multiplier (value of the
+		 * intensifier) it will become 0 after a semantic expression has been
+		 * encountered in the sentence. **************************************
+		 * If the intensifier was more than 2 words away from the positive or
+		 * negative semantic word/expression then suppose that it was referring
+		 * to another adjective that is not set on our semantic database
+		 */
+		float sentiment = 0;
+		if (multiplier == 0) {
+			sentiment = Commons.negative.get(word);
+			sentimentIdx = i;
+		} else {
+			if (i - sentimentIdx > 2) {
+				sentiment = Commons.negative.get(word);
+			} else {
+				sentiment = Commons.negative.get(word) * multiplier;
+			}
+		}
+		return sentiment;
+	}
+
+	/*
+	 * Receives a list of indexes for all the nouns in the sentence, the topics
+	 * index in the sentence and the tokens of the sentence in hand. It is used
+	 * to assign part or full semantic value to the search-topic.
+	 */
+	private void fuzzySemantics(List<Integer> nounIndex, int topicIdx) {
+		/**
+		 * the semantic expression is within the topic range, meaning that it
+		 * can be referring to it. The problem is that it can be referring to
+		 * another noun in the sentence, and thats what is clarified here. ...
+		 * *******************************************************************
+		 * cases of syntax : 1) [semantic expression], [some noun], [topic] :
+		 * the sentiment in this case is attributed to the noun closer to the
+		 * semantic expression. ................................................
+		 * 2) [some noun], [semantic expression], [topic] : since we can't be
+		 * certain regarding who does the expression refers to, its value is
+		 * divided between the random noun and the search-topic.
 		 */
 
-		// values for the numerical representation of sentiment in the sentence
-		float sentMultyplier = 0;
-		float sentencePositive = 0;
-		float sentenceNegative = 0;
+		float[] sentimentInRange = new float[3];// [0]-positive,
+												// [1]-negative,[2] sentidx
+		float[] fuzzySentiment = new float[2];// [0]-positive, [1]-negative
+		fuzzySentiment[0] = 0;
+		fuzzySentiment[1] = 0;
+		float curentPos = 0;
+		float curentNeg = 0;
+		int sentimentIdx = 0;
 
-		Locale locale = Locale.UK;
-		BreakIterator breakIterator = BreakIterator.getWordInstance(locale);
-		breakIterator.setText(sent);
+		// low range
+		sentimentInRange = topicRangeSentiment(topicIdx, topicIdx - GlobalVar.TOPIC_RANGE, topicIdx);
+		curentPos = sentimentInRange[0];
+		curentNeg = sentimentInRange[1];
+		sentimentIdx = (int) sentimentInRange[2];
+		if (sentimentIdx > -1) {// if a sentiment is found inside topic range
+			boolean[] flags = nounInRangeCheck("low", topicIdx, sentimentIdx, nounIndex);
+			if (!flags[1])// sentiment refers to other noun
+				if (flags[0]) {// split sentiment value
+					commentPositiveSentiment += (curentPos / 2);
+					commentNegativeSentiment += (curentNeg / 2);
+				} else {
+					commentPositiveSentiment += curentPos;
+					commentNegativeSentiment += curentNeg;
+				}
 
-		int start = breakIterator.first();
-		int end = breakIterator.next();
-		String word;
-		while (end != BreakIterator.DONE) {
-			if (end - start <= 2) {// skip small words{
-				start = end;
-				end = breakIterator.next();
-				continue;
+		}
+
+		// high range
+		sentimentInRange = topicRangeSentiment(topicIdx, topicIdx, topicIdx + GlobalVar.TOPIC_RANGE);
+		curentPos = sentimentInRange[0];
+		curentNeg = sentimentInRange[1];
+		sentimentIdx = (int) sentimentInRange[2];
+		if (sentimentIdx > -1) {// if a sentiment is found inside topic range
+			boolean[] flags = nounInRangeCheck("high", topicIdx, sentimentIdx, nounIndex);
+			if (!flags[1])// sentiment refers to other noun
+				if (flags[0]) {// split sentiment value
+					commentPositiveSentiment += (curentPos / 2);
+					commentNegativeSentiment += (curentNeg / 2);
+				} else {
+					commentPositiveSentiment += curentPos;
+					commentNegativeSentiment += curentNeg;
+				}
+		}
+
+	}
+
+	/*
+	 * determine whether there is another noun in a certain vicinity with the
+	 * semantic expression to which it (the expression)
+	 */
+	private boolean[] nounInRangeCheck(String orientation, int topicIdx, int sentimentIdx, List<Integer> nounIndex) {
+		// [0]-low out-range, [1]-low mid-range, , [2] -high out-range, [3]-high
+		// mid-range
+		boolean[] sentimentInRange = new boolean[] { false, false, false, false };
+		for (Integer nidx : nounIndex) {
+			if (orientation.equals("low")) {
+				if (nidx >= topicIdx)
+					break;
+				if (nidx >= sentimentIdx - GlobalVar.TOPIC_RANGE && nidx < sentimentIdx) {
+					// case(low out range):[noun] <-topic range-> [sem. expre.]
+					// <- topic range-> [topic]
+					sentimentInRange[0] = true;
+				} else if (nidx < topicIdx && nidx > sentimentIdx) {
+					// case(low mid range): [sem. expre.] <- topic -[random
+					// noun]- range-> [topic]
+					sentimentInRange[1] = true;
+					break;
+				}
+			} else if (orientation.equals("high")) {
+				if (nidx > sentimentIdx + GlobalVar.TOPIC_RANGE)
+					break;
+				if (nidx > sentimentIdx && nidx <= sentimentIdx + GlobalVar.TOPIC_RANGE) {
+					// case (high out range): [topic], [sem. exp.], [noun]
+					sentimentInRange[2] = true;
+				} else if (nidx > topicIdx && nidx < sentimentIdx) {
+					// case (high mid range): [topic], [noun], [sem. exp.]
+					sentimentInRange[2] = true;
+					break;
+				}
 			}
-			word = sent.substring(start, end).toLowerCase();
+		} // for
+
+		return sentimentInRange;
+	}
+
+	/* Check to see if there is a semantic expression near the search-topic */
+	private float[] topicRangeSentiment(int topicIdx, int start, int end) {
+
+		PorterStemmer ps = new PorterStemmer();
+		String word;
+		float[] sentimentVals = new float[3];// [0]-positive, [1]-negative
+		float multiplier = 0;
+		float curentPos = 0, curentNeg = 0;
+		int sentimentIdx = -1;
+
+		for (int i = start; i < end; i++) {
+			word = ps.stem(tokens[i]).toLowerCase();
+			if (word.length() <= 2)
+				continue;
 
 			if (Commons.intensifiers.containsKey(word)) {
-				sentMultyplier += Commons.intensifiers.get(word);
+				multiplier += Commons.intensifiers.get(word);
 			} else if (Commons.positive.containsKey(word)) {
-				if (sentMultyplier != 0) {
-					sentencePositive += sentMultyplier * Commons.positive.get(word);
-					sentMultyplier = 0;
-				} else {
-					sentencePositive += Commons.positive.get(word);
-				}
+				curentPos += positiveSentimentEvaluation(multiplier, word, sentimentIdx, i);
+				multiplier = 0;
+				sentimentIdx = i;
 			} else if (Commons.negative.containsKey(word)) {
-				if (sentMultyplier != 0) {
-					sentenceNegative += sentMultyplier * Commons.negative.get(word);
-					sentMultyplier = 0;
-				} else {
-					sentenceNegative += Commons.negative.get(word);
-				}
+				curentNeg += negativeSentimentEvaluation(multiplier, word, sentimentIdx, i);
+				multiplier = 0;
+				sentimentIdx = i;
 			}
-//			if (curentSentiment>0)
-//				sentencePositive+=curentSentiment;
-//			else 
-//				sentenceNegative+=curentSentiment;
-//			curentSentiment=0;
-			
-			start = end;
-			end = breakIterator.next();
+		} // for
+		sentimentVals[0] = curentPos;
+		sentimentVals[1] = curentNeg;
+		sentimentVals[2] = sentimentIdx;
+		return sentimentVals;
+	}
+
+	/*
+	 * with the use of open nlp POS tager find the nouns in the sentence. They
+	 * are considered as possible topics in the sentence.
+	 */
+	private List<Integer> sentenceNounExtraction(String sent) throws IOException {
+		List<Integer> nounIdx = new ArrayList<>();
+
+		String[] wlineTokens = WhitespaceTokenizer.INSTANCE.tokenize(sent);
+		String[] tags = Commons.getPOSTaggerME().tag(wlineTokens);
+		for (int i = 0; i < tags.length; i++) {
+			if (tags[i] == "NN" || tags[i] == "NNS" || tags[i] == "NNP" || tags[i] == "NNPS") {
+				nounIdx.add(i);
+			}
 		}
-//		System.out.printf("pos : %.2f,   neg: %.2f \n", sentencePositive, sentenceNegative);
-		commentPositiveSentimentPoints += sentencePositive;
-		commentNegativeSentimentPoints += sentenceNegative;
+		return nounIdx;
 	}
 
-
-	public float getCommentPositiveSentimentPoints() {
-		return commentPositiveSentimentPoints;
+	public float getCommentPositiveSentiment() {
+		return commentPositiveSentiment;
 	}
 
-
-	public float getCommentNegativeSentimentPoints() {
-		return commentNegativeSentimentPoints;
+	public void setCommentPositiveSentiment(float commentPositiveSentiment) {
+		this.commentPositiveSentiment = commentPositiveSentiment;
 	}
 
+	public float getCommentNegativeSentiment() {
+		return commentNegativeSentiment;
+	}
+
+	public void setCommentNegativeSentiment(float commentNegativeSentiment) {
+		this.commentNegativeSentiment = commentNegativeSentiment;
+	}
 
 	public boolean isFoundFlag() {
 		return foundFlag;
 	}
 
-	
-public String getSelectedSentence() {
+	public void setFoundFlag(boolean foundFlag) {
+		this.foundFlag = foundFlag;
+	}
+
+	public String getSelectedSentence() {
 		return selectedSentence;
 	}
 
-	
-	
-	/**
-	 * POSIBLE EXTENTIONS**************************************************
-	 * 
-	 * public float stringSimilarity(String word, String topic) { return 0; }
-	 * 
-	 * public String stemming(String word) { return word; }
-	 */
+	public void setSelectedSentence(String selectedSentence) {
+		this.selectedSentence = selectedSentence;
+	}
+
 }

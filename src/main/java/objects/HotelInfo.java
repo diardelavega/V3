@@ -36,9 +36,6 @@ public class HotelInfo {
 	public String getName() {
 		return name;
 	}
-	public void setName1(String name) {
-		this.name = name;
-	}
 	public String getHtmlAddress() {
 		return htmlAddress;
 	}

@@ -62,7 +62,7 @@ public class ReadHotelFiles implements ReadData {
 	 * iterate through the reviews to find sentiment about a topic and get the
 	 * ratings for hotel attributes
 	 */
-	private void topicSearch(JsonArray reviews, String topic) {
+	private void topicSearch(JsonArray reviews, String topic) throws IOException {
 		TopicSearchEvaluation tse;
 
 		for (JsonElement rev : reviews) {
@@ -78,8 +78,8 @@ public class ReadHotelFiles implements ReadData {
 			tse.perSentenceSearch(comment, topic);
 			if (tse.isFoundFlag()) {
 				tsr.countTopicMentions();
-				tsr.addToPositiveSentimentScore(tse.getCommentPositiveSentimentPoints());
-				tsr.addToNegativeSentimentScore(tse.getCommentNegativeSentimentPoints());
+				tsr.addToPositiveSentimentScore(tse.getCommentPositiveSentiment());
+				tsr.addToNegativeSentimentScore(tse.getCommentNegativeSentiment());
 				ReviewInfo rvi = extractReviewInfo(revobj);
 				rvi.setSelectedSentence(tse.getSelectedSentence());
 				tsr.addRepresentativeReview(rvi);
@@ -152,14 +152,18 @@ public class ReadHotelFiles implements ReadData {
 				break;
 			}
 		}
-	}
-
-	private void resultPrint() {
-		/*
-		 * // TEST print results for (String key : attCNV.keySet()) {
-		 * System.out.printf("%s :  %.3f   \n", key,
-		 * attCNV.get(key).properyAvgPoint()); }
-		 */
+		if (hi.getName() == null || hi.getName() == "") {
+			// in case the hotel doesn't have a specified name, try to find it
+			// in the url
+			String hn = " HOTEL";
+			try {
+				hn = hi.getUrl().split("-Reviews")[1].split(".html")[0];
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			hi.setName(hn);
+		}
 	}
 
 	@Override

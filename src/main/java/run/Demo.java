@@ -27,6 +27,7 @@ public class Demo {
 			args[0] = "C:/hotel";
 			args[1] = "breakfast";
 		}
+		System.out.println("@Demo args "+args[0]+" "+args[1]);
 		Commons.init(args[0]);// init semantic data structs
 		if (args.length > 0) {
 			String folderPath = args[0];
@@ -57,14 +58,6 @@ public class Demo {
 				}
 			}
 
-			// TODO sort by topicPoint
-			// print results;
-			// CompareTopic ct= new CompareTopic();
-			// for (int i = 0; i < hotelList.size(); i++) {
-			// System.out.printf("%s, points= %.3f \n",
-			// hotelList.get(i).getInfo().getName(),hotelList.get(i).getTsr().getTotalSentimentPoints());
-			// }
-			// System.out.println("-------------------");
 			Collections.sort(hotelList, new CompareTopic());
 			for (int i = 0; i < hotelList.size(); i++) {
 				System.out.printf("Hotel: %s, points= %.3f \n", hotelList.get(i).getInfo().getName(),
