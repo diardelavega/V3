@@ -28,10 +28,11 @@ public class TopicSearchEvaluation {
 	public void perSentenceSearch(String comment, String topic) throws IOException {
 		foundFlag = false;
 		for (String sentence : Commons.getSentenceDetectorME().sentDetect(comment)) {
-			if (senitmentFinder(sentence, topic))
+			if (senitmentFinder(sentence, topic)) {
 				foundFlag = true;// if it was found once then is always true
-			if (selectedSentence == null || selectedSentence == "" || sentence.length() < selectedSentence.length())
-				selectedSentence = sentence;
+				if (selectedSentence == null || selectedSentence == "" || sentence.length() < selectedSentence.length())
+					selectedSentence = sentence;
+			}
 
 		}
 	}
@@ -165,7 +166,7 @@ public class TopicSearchEvaluation {
 		}
 
 		// high range
-		sentimentInRange = topicRangeSentiment(topicIdx, topicIdx, topicIdx + GlobalVar.TOPIC_RANGE);
+		sentimentInRange = topicRangeSentiment(topicIdx, topicIdx + 1, topicIdx + GlobalVar.TOPIC_RANGE);
 		curentPos = sentimentInRange[0];
 		curentNeg = sentimentInRange[1];
 		sentimentIdx = (int) sentimentInRange[2];
@@ -224,7 +225,10 @@ public class TopicSearchEvaluation {
 
 	/* Check to see if there is a semantic expression near the search-topic */
 	private float[] topicRangeSentiment(int topicIdx, int start, int end) {
-
+		if (start < 0)
+			start = 0;
+		if (end > tokens.length)
+			end = tokens.length;
 		PorterStemmer ps = new PorterStemmer();
 		String word;
 		float[] sentimentVals = new float[3];// [0]-positive, [1]-negative
