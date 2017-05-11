@@ -25,7 +25,8 @@ import opennlp.tools.stemmer.PorterStemmer;
 
 /**
  * @author Administrator this class will contain structures that load the
- *         semantic file informations
+ *         semantic file informations. It also initializes and supplies models
+ *         for the sentence tokenization and pos tagger of the nlp package.
  */
 public class Commons {
 	public static Map<String, Float> positive = null;
@@ -40,9 +41,21 @@ public class Commons {
 
 	public static SentenceDetectorME getSentenceDetectorME() throws IOException {
 		if (sdetector == null) {
-			if (!(new File(sentenceTokenizerPath).exists()))
-				throw new FileNotFoundException("sentence tokenizer model file not found");
-			InputStream is = new FileInputStream(sentenceTokenizerPath);
+			InputStream is = null;// new FileInputStream(sentenceTokenizerPath);
+			ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+			File f = new File(classloader.getResource("en-sent.bin").getFile());
+			if (!(f.exists())) {
+				f = new File(sentenceTokenizerPath);
+				if (!(f.exists())) {
+					throw new FileNotFoundException("sentence tokenizer model file not found");
+				} else {
+					is = new FileInputStream(sentenceTokenizerPath);
+				}
+			} else {
+				is = classloader.getResourceAsStream("en-sent.bin");
+			}
+			//
+
 			SentenceModel model = new SentenceModel(is);
 			sdetector = new SentenceDetectorME(model);
 		}
@@ -51,10 +64,13 @@ public class Commons {
 
 	public static POSTaggerME getPOSTaggerME() throws IOException {
 		if (tagger == null) {
-			File file = new File(posTaggerPath);
-			if (!file.exists())
-				throw new FileNotFoundException("POS tagger model file not found");
-			POSModel pmodel = new POSModelLoader().load(file);
+			ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+			File f = new File(classloader.getResource("en-pos-maxent.bin").getFile());
+			if (!f.exists())
+				if (!((f = new File(posTaggerPath)).exists()))
+					throw new FileNotFoundException("POS tagger model file not found");
+
+			POSModel pmodel = new POSModelLoader().load(f);
 			tagger = new POSTaggerME(pmodel);
 		}
 		return tagger;

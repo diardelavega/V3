@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,14 +24,12 @@ import utils.GlobalVar;
 public class Demo {
 
 	public static void main(String[] args) throws IOException {
-		// TODO Auto-generated method stub
-		demoRun(args);
-
+		 demoRun(args);
 	}
 
 	public static void loadConfigs(String reviewDirPath) throws NumberFormatException, IOException {
 		ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-		BufferedReader bfr = new BufferedReader(new FileReader(new File(classloader.getResource("config").getFile())));
+		BufferedReader bfr = new BufferedReader(new InputStreamReader(classloader.getResourceAsStream("config")));
 		String line;
 		String sentenceTokenizer = null;
 		String posTagger = null;
