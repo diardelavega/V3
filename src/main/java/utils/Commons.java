@@ -41,21 +41,7 @@ public class Commons {
 
 	public static SentenceDetectorME getSentenceDetectorME() throws IOException {
 		if (sdetector == null) {
-			InputStream is = null;// new FileInputStream(sentenceTokenizerPath);
-			ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-			File f = new File(classloader.getResource("en-sent.bin").getFile());
-			if (!(f.exists())) {
-				f = new File(sentenceTokenizerPath);
-				if (!(f.exists())) {
-					throw new FileNotFoundException("sentence tokenizer model file not found");
-				} else {
-					is = new FileInputStream(sentenceTokenizerPath);
-				}
-			} else {
-				is = classloader.getResourceAsStream("en-sent.bin");
-			}
-			//
-
+			InputStream is = new FileInputStream(sentenceTokenizerPath);
 			SentenceModel model = new SentenceModel(is);
 			sdetector = new SentenceDetectorME(model);
 		}
@@ -64,11 +50,9 @@ public class Commons {
 
 	public static POSTaggerME getPOSTaggerME() throws IOException {
 		if (tagger == null) {
-			ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-			File f = new File(classloader.getResource("en-pos-maxent.bin").getFile());
+			File f = new File(posTaggerPath);
 			if (!f.exists())
-				if (!((f = new File(posTaggerPath)).exists()))
-					throw new FileNotFoundException("POS tagger model file not found");
+				throw new FileNotFoundException("POS tagger model file not found");
 
 			POSModel pmodel = new POSModelLoader().load(f);
 			tagger = new POSTaggerME(pmodel);

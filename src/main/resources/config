@@ -6,7 +6,7 @@ topic_range=41
 
 #if the files are not present in the project files (as normally should be) then specify their eternal address
 # file showing the open-nlp sentence tokenizer.
-sentence_token="C:/Users/Administrator/Documents/opennlp/models/en-sent.bin"
+sentence_token=C:/Users/Administrator/Documents/opennlp/models/en-sent.bin
 
 #path to the file for the open-nlp POS tager model
-pos_tager="C:/Users/Administrator/Documents/opennlp/models/en-pos-maxent.bin"
+pos_tager=C:/Users/Administrator/Documents/opennlp/models/en-pos-maxent.bin

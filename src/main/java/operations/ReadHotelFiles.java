@@ -139,6 +139,7 @@ public class ReadHotelFiles implements ReadData {
 				hi.setUrl(gson.fromJson(es.getValue(), String.class));
 				break;
 			case "Address":
+				
 				hi.setHtmlAddress(gson.fromJson(es.getValue(), String.class));
 				break;
 			case "HotelID":
@@ -167,7 +168,7 @@ public class ReadHotelFiles implements ReadData {
 			hi.setName(hn);
 		}
 	}
-
+	
 	@Override
 	public HotelInfo getHotelInfo() {
 		// TODO Auto-generated method stub
@@ -184,4 +185,5 @@ public class ReadHotelFiles implements ReadData {
 		return tsr;
 	}
 
+	
 }

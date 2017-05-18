@@ -13,8 +13,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
+import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import objects.CliResponse;
 import objects.HotelObj;
 import operations.CompareTopic;
 import operations.ReadHotelFiles;
@@ -23,69 +28,76 @@ import utils.GlobalVar;
 
 public class Demo {
 
-	public static void main(String[] args) throws IOException {
-		 demoRun(args);
+	public static void main(String[] args) throws Exception {
+		
+		CliResponse clirsp = new CLI(args).parse();
+		if (clirsp.getDir() != null && clirsp.getTopic() != null)
+			demoRun(clirsp);
 	}
 
-	public static void loadConfigs(String reviewDirPath) throws NumberFormatException, IOException {
+	public static void readAndInit(String reviewDirPath) throws IOException {
 		ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-		BufferedReader bfr = new BufferedReader(new InputStreamReader(classloader.getResourceAsStream("config")));
-		String line;
+		Properties prop = new Properties();
+		prop.load(new InputStreamReader(classloader.getResourceAsStream("config")));
 		String sentenceTokenizer = null;
 		String posTagger = null;
-		while ((line = bfr.readLine()) != null) {
-			if (line.startsWith("#") || line.equals(""))
-				continue;
-			if (line.startsWith("topic_range"))
-				GlobalVar.TOPIC_RANGE = Integer.parseInt(line.split("=")[1]);
-			else if (line.startsWith("sentence_token"))
-				sentenceTokenizer = line.split("=")[1].replaceAll("\"", "");
-			else if (line.startsWith("pos_tager"))
-				posTagger = line.split("=")[1].replaceAll("\"", "");
-		} // while
+
+		if (prop.containsKey("sentence_token")) {
+			sentenceTokenizer = prop.getProperty("sentence_token", "123");
+		}
+		if (prop.containsKey("pos_tager")) {
+			posTagger = prop.getProperty("pos_tager", "123");
+		}
 
 		// init semantic structs and nlp model file paths
 		Commons.init(reviewDirPath, sentenceTokenizer, posTagger);
+
 	}
 
-	public static void demoRun(String[] args) throws IOException {
 
-		if (args.length > 0) {
-			String folderPath = args[0];
-			File dataFolder = new File(folderPath);
-			if (!dataFolder.exists()) {
-				throw new FileNotFoundException();
-			} else if (!dataFolder.isDirectory()) {
-				throw new FileNotFoundException("this is not a folder/directory");
-			} else if (dataFolder.list().length == 0) {
-				throw new FileNotFoundException("this folder is empty");
+	public static void demoRun(CliResponse clirsp) throws IOException {
+
+		File dataFolder = new File(clirsp.getDir());
+
+		readAndInit(clirsp.getDir());
+		String topic = clirsp.getTopic();
+		ReadHotelFiles rhf;
+
+		List<HotelObj> hotelList = new ArrayList<>();
+		for (String f : dataFolder.list()) {
+			String fileName = clirsp.getDir() + "/" + f;
+			HotelObj hotel = new HotelObj();
+			rhf = new ReadHotelFiles();
+			if (rhf.readHotelData(fileName, topic) != -1) {
+				hotel.setInfo(rhf.getHotelInfo());
+				hotel.setAttributes(rhf.getAttributes());
+				hotel.setTsr(rhf.getTopicResults());
+				hotelList.add(hotel);
 			}
-			loadConfigs(args[0]);
-
-			String topic = args[1];
-			ReadHotelFiles rhf;
-
-			List<HotelObj> hotelList = new ArrayList<>();
-			for (String f : dataFolder.list()) {
-				String fileName = folderPath + "/" + f;
-				HotelObj hotel = new HotelObj();
-				rhf = new ReadHotelFiles();
-				if (rhf.readHotelData(fileName, topic) != -1) {
-					hotel.setInfo(rhf.getHotelInfo());
-					hotel.setAttributes(rhf.getAttributes());
-					hotel.setTsr(rhf.getTopicResults());
-					hotelList.add(hotel);
-				}
-			}
-
-			Collections.sort(hotelList, new CompareTopic());
-			for (int i = 0; i < hotelList.size(); i++) {
-				System.out.printf("Hotel: %s, points= %.3f \n", hotelList.get(i).getInfo().getName(),
-						hotelList.get(i).getTsr().getTotalSentimentPoints());
-				hotelList.get(i).getTsr().printExample();
-			}
-			System.out.println();
 		}
 
+		Collections.sort(hotelList, new CompareTopic());
+		for (int i = 0; i < hotelList.size(); i++) {
+			System.out.printf("Hotel: %s, points= %.3f \n", hotelList.get(i).getInfo().getName(), hotelList.get(i).getTsr().getTotalSentimentPoints());
+			if(clirsp.isHotlInfo()){
+				System.out.println("hotel info----------------");
+				hotelList.get(i).getInfo().printHotelInfo();
+				System.out.println();
+			}
+			if(clirsp.isRatings()){
+				System.out.println("attribute ratings----------------");
+				for(String k:hotelList.get(i).getAttribute().keySet()){
+					System.out.printf("%s : %.2f \n",k,hotelList.get(i).getAttribute().get(k).properyAvgPoint());
+				}
+			}
+			
+//			if(clirsp.isReviewDetails())
+				hotelList.get(i).getTsr().printExample(clirsp.isReviewDetails(), clirsp.isRepresentativeSentences());
+			
+			
+			System.out.println();
+		}
+		System.out.println();
 	}
+
 }

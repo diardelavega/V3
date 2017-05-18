@@ -10,7 +10,8 @@ package objects;
 public class TopicSentimentResults {
 
 	private String topic;
-	private int topicMentions; // number of time the topic was mentioned in the comments
+	private int topicMentions; // number of time the topic was mentioned in the
+								// comments
 	private float positiveSentimentScore;
 	private float negativeSentimentScore;
 	// some reviews to concretely display to our users
@@ -104,15 +105,25 @@ public class TopicSentimentResults {
 		return representativeReviews;
 	}
 
-	
-	public void printExample(){
-		System.out.printf("\t topic: %s, mentioned: %d, positive: %.3f, negative: %.3f, total: %.3f, average: %.3f \n",topic, topicMentions,positiveSentimentScore,negativeSentimentScore,getTotalSentimentPoints(),getAverageSentimentPoints());
-		for(int i=0;i<3;i++){
-			if(representativeReviews[i]!=null){
-				System.out.printf("%d) %s\n",i,representativeReviews[i].getSelectedSentence());
+	public void printExample( boolean details,boolean sentence) {
+		System.out.printf("\t topic: %s, mentioned: %d, positive: %.3f, negative: %.3f, total: %.3f, average: %.3f \n", topic, topicMentions, positiveSentimentScore, negativeSentimentScore, getTotalSentimentPoints(), getAverageSentimentPoints());
+		System.out.println("Comment------------------------");
+		for (int i = 0; i < 3; i++) {
+			if (representativeReviews[i] != null) {
+				if (details) {
+					System.out.println("title: "+representativeReviews[i].getReviewTitle()==null?"-":representativeReviews[i].getReviewTitle());
+					System.out.println("author: "+representativeReviews[i].getAuthName()==null?"-":representativeReviews[i].getAuthName());
+					System.out.println("author location: "+representativeReviews[i].getAuthLocation()==null?"-":representativeReviews[i].getAuthLocation());
+					System.out.println("date: "+ representativeReviews[i].getDate()==null?"-":representativeReviews[i].getDate());
+					System.out.println("rev. ID: "+ representativeReviews[i].getReviewId()==null?"-":representativeReviews[i].getReviewId());
+					}
+				if (sentence)
+					System.out.printf("sentence*: %s\n", representativeReviews[i].getSelectedSentence());
 			}
+//			System.out.println();
 		}
 		System.out.println();
-//		System.out.printf("\t examples:\n %s \n %s \n %s \n \n",representativeReviews[0].getSelectedSentence(),representativeReviews[1].getSelectedSentence(),representativeReviews[2].getSelectedSentence());
+		System.out.println();
 	}
+
 }
